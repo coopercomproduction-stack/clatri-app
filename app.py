@@ -121,36 +121,39 @@ st.divider()
 prompt_usuario = st.chat_input("Escribe aquí tu movimiento...")
 if prompt_usuario:
     with st.spinner("Procesando comando con IA..."):
-        data_ia = procesar_mensaje_ia(prompt_usuario)
-        banco_nombre = data_ia.get("banco")
-        monto = float(data_ia.get("monto", 0))
-        accion = data_ia.get("accion")
-        
-        res_banco = supabase.table("cuentas").select("*").eq("nombre", banco_nombre).execute()
-        
-        if not res_banco.data:
-            logo_b = obtener_logo(banco_nombre)
-            nuevo_saldo = monto if accion != "registrar_gasto" else 0
-            cuenta_res = supabase.table("cuentas").insert({
-                "nombre": banco_nombre, "saldo": nuevo_saldo, "logo_url": logo_b
-            }).execute()
-            cuenta_id = cuenta_res.data[0]["id"]
-        else:
-            cuenta_db = res_banco.data[0]
-            cuenta_id = cuenta_db["id"]
-            nuevo_saldo = float(cuenta_db["saldo"]) - monto if accion == "registrar_gasto" else float(cuenta_db["saldo"]) + monto
-            supabase.table("cuentas").update({"saldo": nuevo_saldo}).eq("id", cuenta_id).execute()
+        try:
+            data_ia = procesar_mensaje_ia(prompt_usuario)
+            banco_nombre = data_ia.get("banco")
+            monto = float(data_ia.get("monto", 0))
+            accion = data_ia.get("accion")
+            
+            res_banco = supabase.table("cuentas").select("*").eq("nombre", banco_nombre).execute()
+            
+            if not res_banco.data:
+                logo_b = obtener_logo(banco_nombre)
+                nuevo_saldo = monto if accion != "registrar_gasto" else 0
+                cuenta_res = supabase.table("cuentas").insert({
+                    "nombre": banco_nombre, "saldo": nuevo_saldo, "logo_url": logo_b
+                }).execute()
+                cuenta_id = cuenta_res.data[0]["id"]
+            else:
+                cuenta_db = res_banco.data[0]
+                cuenta_id = cuenta_db["id"]
+                nuevo_saldo = float(cuenta_db["saldo"]) - monto if accion == "registrar_gasto" else float(cuenta_db["saldo"]) + monto
+                supabase.table("cuentas").update({"saldo": nuevo_saldo}).eq("id", cuenta_id).execute()
 
-        if accion in ["registrar_gasto", "registrar_ingreso"]:
-            logo_c = obtener_logo(data_ia.get("comercio", banco_nombre))
-            supabase.table("transacciones").insert({
-                "cuenta_id": cuenta_id,
-                "comercio": data_ia.get("comercio", banco_nombre),
-                "descripcion": data_ia.get("descripcion", prompt_usuario),
-                "monto": monto,
-                "tipo": "gasto" if accion == "registrar_gasto" else "ingreso",
-                "categoria": data_ia.get("categoria", "General"),
-                "logo_comercio": logo_c
-            }).execute()
+            if accion in ["registrar_gasto", "registrar_ingreso"]:
+                logo_c = obtener_logo(data_ia.get("comercio", banco_nombre))
+                supabase.table("transacciones").insert({
+                    "cuenta_id": cuenta_id,
+                    "comercio": data_ia.get("comercio", banco_nombre),
+                    "descripcion": data_ia.get("descripcion", prompt_usuario),
+                    "monto": monto,
+                    "tipo": "gasto" if accion == "registrar_gasto" else "ingreso",
+                    "categoria": data_ia.get("categoria", "General"),
+                    "logo_comercio": logo_c
+                }).execute()
 
-        st.rerun()
+            st.rerun()
+        except Exception as err:
+            st.error(f"⚠️ Respuesta de la IA: {err}")
