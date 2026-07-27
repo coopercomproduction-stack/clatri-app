@@ -26,14 +26,12 @@ st.set_page_config(
 # -----------------------------------------------------------------------------
 st.markdown("""
 <style>
-    /* Estilos generales del contenedor */
     .block-container {
         padding-top: 1.5rem;
         padding-bottom: 2rem;
         max-width: 1200px;
     }
     
-    /* Tarjetas de métricas superiores */
     [data-testid="stMetric"] {
         background-color: #161b22;
         border: 1px solid #30363d;
@@ -42,7 +40,6 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
-    /* Tarjetas de cuentas */
     .account-card {
         background-color: #161b22;
         border: 1px solid #30363d;
@@ -56,7 +53,6 @@ st.markdown("""
         transform: translateY(-2px);
     }
     
-    /* Badges de etiquetas */
     .badge-gasto {
         background-color: rgba(248, 81, 73, 0.15);
         color: #f85149;
@@ -149,7 +145,7 @@ def procesar_mensaje_ia(mensaje_usuario):
     raise RuntimeError(f"Error procesando el modelo. Detalle: {ultimo_error}")
 
 # -----------------------------------------------------------------------------
-# SIDEBAR (Panel Lateral de Información)
+# SIDEBAR
 # -----------------------------------------------------------------------------
 with st.sidebar:
     st.image("[https://ui-avatars.com/api/?name=Clatri+Engine&background=238636&color=fff&size=128](https://ui-avatars.com/api/?name=Clatri+Engine&background=238636&color=fff&size=128)", width=60)
@@ -176,7 +172,6 @@ cuentas = res_cuentas.data or []
 res_trans = supabase.table("transacciones").select("*, cuentas(nombre)").order("fecha", desc=True).limit(10).execute()
 transacciones = res_trans.data or []
 
-# Cálculo de totales globales
 patrimonio_total = sum(c.get("saldo", 0) for c in cuentas)
 total_ingresos = sum(t.get("monto", 0) for t in transacciones if t.get("tipo") == "ingreso")
 total_gastos = sum(t.get("monto", 0) for t in transacciones if t.get("tipo") == "gasto")
