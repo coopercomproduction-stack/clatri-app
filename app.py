@@ -36,7 +36,7 @@ def obtener_logo(nombre_entidad):
     return f"https://logo.clearbit.com/{nombre_lower.replace(' ', '')}.com"
 
 def procesar_mensaje_ia(mensaje_usuario):
-    model = genai.GenerativeModel("gemini-pro")
+    model = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"""
     Eres el motor contable de una app financiera. Analiza el siguiente mensaje y devuelve ÚNICAMENTE un JSON válido sin Markdown adicional.
 
