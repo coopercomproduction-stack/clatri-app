@@ -4,7 +4,7 @@ import google.generativeai as genai
 import json
 
 # -----------------------------------------------------------------------------
-# CREDENCIALES Y CONFIGURACIÓN
+# CREDENCIALES Y CONFIGURACIÓN DE PÁGINA
 # -----------------------------------------------------------------------------
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -14,7 +14,69 @@ GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 genai.configure(api_key=GEMINI_API_KEY)
 
-st.set_page_config(page_title="Clatri Private Engine", page_icon="💳", layout="centered")
+st.set_page_config(
+    page_title="Clatri Private Engine",
+    page_icon="💳",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# -----------------------------------------------------------------------------
+# ESTILOS CSS PERSONALIZADOS (Diseño Fintech Moderno)
+# -----------------------------------------------------------------------------
+st.markdown("""
+<style>
+    /* Estilos generales del contenedor */
+    .block-container {
+        padding-top: 1.5rem;
+        padding-bottom: 2rem;
+        max-width: 1200px;
+    }
+    
+    /* Tarjetas de métricas superiores */
+    [data-testid="stMetric"] {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Tarjetas de cuentas */
+    .account-card {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .account-card:hover {
+        border-color: #58a6ff;
+        transform: translateY(-2px);
+    }
+    
+    /* Badges de etiquetas */
+    .badge-gasto {
+        background-color: rgba(248, 81, 73, 0.15);
+        color: #f85149;
+        border: 1px solid rgba(248, 81, 73, 0.4);
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .badge-ingreso {
+        background-color: rgba(46, 160, 67, 0.15);
+        color: #3fb950;
+        border: 1px solid rgba(46, 160, 67, 0.4);
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
 # FUNCIONES AUXILIARES
@@ -26,29 +88,26 @@ def obtener_logo(nombre_entidad):
         "nequi": "https://logo.clearbit.com/nequi.com.co",
         "daviplata": "https://logo.clearbit.com/daviplata.com",
         "caja social": "https://logo.clearbit.com/bancocajasocial.com",
-        "mi.com": "https://logo.clearbit.com/mi.com",
-        "xiaomi": "https://logo.clearbit.com/mi.com"
+        "coopercom": "https://logo.clearbit.com/google.com"
     }
     nombre_lower = nombre_entidad.lower()
     for clave, url in dominios_conocidos.items():
         if clave in nombre_lower:
             return url
-    return f"https://logo.clearbit.com/{nombre_lower.replace(' ', '')}.com"
+    return f"https://ui-avatars.com/api/?name={nombre_entidad}&background=1f6feb&color=fff&bold=true"
 
 def procesar_mensaje_ia(mensaje_usuario):
-    # 1. Consultar modelos habilitados en tiempo real
     try:
         modelos_disponibles = [
             m.name for m in genai.list_models() 
             if 'generateContent' in m.supported_generation_methods
         ]
     except Exception as e:
-        raise RuntimeError(f"Error al consultar lista de modelos de Google: {e}")
+        raise RuntimeError(f"Error al consultar la lista de modelos de Google: {e}")
 
     if not modelos_disponibles:
         raise RuntimeError("Tu API Key no tiene modelos activos asignados.")
 
-    # 2. Ordenar modelos (priorizando los rápidos tipo 'flash')
     modelos_ordenados = sorted(modelos_disponibles, key=lambda x: 0 if 'flash' in x.lower() else 1)
 
     prompt = f"""
@@ -67,14 +126,12 @@ def procesar_mensaje_ia(mensaje_usuario):
     }}
     """
 
-    # 3. Probar cada modelo disponible hasta que uno genere la respuesta con éxito
     ultimo_error = None
     for nombre_modelo in modelos_ordenados:
         try:
             model = genai.GenerativeModel(nombre_modelo)
             response = model.generate_content(prompt)
             
-            # Limpiar etiquetas markdown de la respuesta
             raw_text = response.text.strip()
             if raw_text.startswith("```"):
                 lines = raw_text.splitlines()
@@ -89,51 +146,122 @@ def procesar_mensaje_ia(mensaje_usuario):
             ultimo_error = err
             continue
 
-    raise RuntimeError(f"Ningún modelo de tu cuenta pudo procesar la solicitud. Detalle: {ultimo_error}")
+    raise RuntimeError(f"Error procesando el modelo. Detalle: {ultimo_error}")
 
 # -----------------------------------------------------------------------------
-# INTERFAZ DE USUARIO
+# SIDEBAR (Panel Lateral de Información)
 # -----------------------------------------------------------------------------
-st.title("💳 Clatri Private Engine")
+with st.sidebar:
+    st.image("[https://ui-avatars.com/api/?name=Clatri+Engine&background=238636&color=fff&size=128](https://ui-avatars.com/api/?name=Clatri+Engine&background=238636&color=fff&size=128)", width=60)
+    st.title("Clatri Engine")
+    st.caption("Motor financiero privado impulsado por IA")
+    
+    st.divider()
+    st.markdown("### 💡 Ejemplos de Comandos")
+    st.info("""
+    * *"Deposite 200.000 en Nequi"*
+    * *"Gaste 45.000 en Éxito con DaviPlata"*
+    * *"Pago de nómina 1.500.000 en Caja Social"*
+    """)
+    
+    st.divider()
+    st.caption("🟢 Estado del sistema: **Operativo**")
 
-# 1. SECCIÓN CUENTAS
-st.subheader("📂 Cuentas")
+# -----------------------------------------------------------------------------
+# CONSULTA DE DATOS BASE
+# -----------------------------------------------------------------------------
 res_cuentas = supabase.table("cuentas").select("*").execute()
-cuentas = res_cuentas.data
+cuentas = res_cuentas.data or []
+
+res_trans = supabase.table("transacciones").select("*, cuentas(nombre)").order("fecha", desc=True).limit(10).execute()
+transacciones = res_trans.data or []
+
+# Cálculo de totales globales
+patrimonio_total = sum(c.get("saldo", 0) for c in cuentas)
+total_ingresos = sum(t.get("monto", 0) for t in transacciones if t.get("tipo") == "ingreso")
+total_gastos = sum(t.get("monto", 0) for t in transacciones if t.get("tipo") == "gasto")
+
+# -----------------------------------------------------------------------------
+# ENCABEZADO Y KPIS PRINCIPALES
+# -----------------------------------------------------------------------------
+st.title("💳 Dashboard Financiero")
+st.caption("Gestiona tu patrimonio e ingresos en tiempo real mediante comandos de voz o texto.")
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric(label="Patrimonio Total", value=f"${patrimonio_total:,.0f} COP")
+with col2:
+    st.metric(label="Ingresos Registrados", value=f"${total_ingresos:,.0f} COP", delta="Ingresos", delta_color="normal")
+with col3:
+    st.metric(label="Gastos Registrados", value=f"${total_gastos:,.0f} COP", delta="-Gastos", delta_color="inverse")
+
+st.divider()
+
+# -----------------------------------------------------------------------------
+# SECCIÓN CUENTAS (GRID)
+# -----------------------------------------------------------------------------
+st.subheader("📂 Cuentas y Saldos")
 
 if cuentas:
-    cols = st.columns(len(cuentas))
+    num_cols = min(len(cuentas), 4)
+    cols_cuentas = st.columns(num_cols)
     for idx, c in enumerate(cuentas):
-        with cols[idx]:
-            st.image(c.get("logo_url") or "[https://via.placeholder.com/40](https://via.placeholder.com/40)", width=40)
-            st.metric(label=c["nombre"], value=f"${c['saldo']:,.0f} COP")
+        with cols_cuentas[idx % num_cols]:
+            logo = c.get("logo_url") or obtener_logo(c["nombre"])
+            st.markdown(f"""
+            <div class="account-card">
+                <img src="{logo}" width="40" height="40" style="border-radius: 50%; margin-bottom: 8px;" />
+                <div style="font-weight: 600; font-size: 1.1rem; color: #c9d1d9;">{c['nombre']}</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: #58a6ff; margin-top: 4px;">
+                    ${c['saldo']:,.0f} <span style="font-size: 0.8rem; color: #8b949e;">COP</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 else:
-    st.info("Escribe en el chat para agregar tu primera cuenta.")
+    st.info("No tienes cuentas registradas aún. Escribe un mensaje abajo para agregar la primera.")
 
 st.divider()
 
-# 2. SECCIÓN TRANSACCIONES
-st.subheader("🧾 Últimas Transacciones")
-res_trans = supabase.table("transacciones").select("*, cuentas(nombre)").order("fecha", desc=True).limit(5).execute()
-for t in res_trans.data:
-    with st.container(border=True):
-        col_img, col_det, col_monto = st.columns([1, 3, 2])
-        with col_img:
-            st.image(t.get("logo_comercio") or "[https://via.placeholder.com/40](https://via.placeholder.com/40)", width=40)
-        with col_det:
-            st.markdown(f"**{t['comercio']}**")
-            st.caption(f"{t['descripcion']} • {t['categoria']}")
-        with col_monto:
-            color = "green" if t['tipo'] == 'ingreso' else "red"
-            signo = "+" if t['tipo'] == 'ingreso' else "-"
-            st.markdown(f":{color}[**{signo}${t['monto']:,.0f} COP**]")
+# -----------------------------------------------------------------------------
+# SECCIÓN ÚLTIMAS TRANSACCIONES
+# -----------------------------------------------------------------------------
+st.subheader("🧾 Historial Reciente")
+
+if transacciones:
+    for t in transacciones:
+        with st.container(border=True):
+            col_img, col_det, col_cat, col_monto = st.columns([0.6, 3, 2, 2])
+            
+            logo_comercio = t.get("logo_comercio") or obtener_logo(t.get("comercio", "General"))
+            
+            with col_img:
+                st.image(logo_comercio, width=40)
+                
+            with col_det:
+                st.markdown(f"**{t.get('comercio', 'Movimiento')}**")
+                cuenta_nombre = t.get("cuentas", {}).get("nombre") if isinstance(t.get("cuentas"), dict) else "Cuenta"
+                st.caption(f"{t.get('descripcion', '')} • *{cuenta_nombre}*")
+                
+            with col_cat:
+                badge_class = "badge-ingreso" if t.get('tipo') == 'ingreso' else "badge-gasto"
+                tipo_texto = "INGRESO" if t.get('tipo') == 'ingreso' else "GASTO"
+                st.markdown(f'<span class="{badge_class}">{tipo_texto}</span> <span style="color: #8b949e; font-size: 0.8rem; margin-left: 6px;">{t.get("categoria", "General")}</span>', unsafe_allow_html=True)
+                
+            with col_monto:
+                color = "#3fb950" if t.get('tipo') == 'ingreso' else "#f85149"
+                signo = "+" if t.get('tipo') == 'ingreso' else "-"
+                st.markdown(f"<div style='text-align: right; font-weight: 700; font-size: 1.1rem; color: {color};'>{signo}${t.get('monto', 0):,.0f} COP</div>", unsafe_allow_html=True)
+else:
+    st.caption("No hay transacciones registradas.")
 
 st.divider()
 
-# 3. CHAT INTERACTIVO
-prompt_usuario = st.chat_input("Escribe aquí tu movimiento...")
+# -----------------------------------------------------------------------------
+# CHAT INTERACTIVO
+# -----------------------------------------------------------------------------
+prompt_usuario = st.chat_input("Escribe tu movimiento (Ej: Gaste 30.000 en gasolina con DaviPlata)...")
 if prompt_usuario:
-    with st.spinner("Procesando comando con IA..."):
+    with st.spinner("Procesando transacción con IA..."):
         try:
             data_ia = procesar_mensaje_ia(prompt_usuario)
             banco_nombre = data_ia.get("banco")
@@ -169,4 +297,4 @@ if prompt_usuario:
 
             st.rerun()
         except Exception as err:
-            st.error(f"⚠️ Respuesta de la IA: {err}")
+            st.error(f"⚠️ Error al procesar: {err}")
