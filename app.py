@@ -48,10 +48,9 @@ def procesar_mensaje_ia(mensaje_usuario):
     if not modelos_disponibles:
         raise RuntimeError("Tu API Key no tiene modelos activos asignados.")
 
-    # 2. Seleccionar el mejor modelo disponible
-    nombre_modelo = next((m for m in modelos_disponibles if 'flash' in m), modelos_disponibles[0])
-    model = genai.GenerativeModel(nombre_modelo)
-    
+    # 2. Ordenar modelos (priorizando los rápidos tipo 'flash')
+    modelos_ordenados = sorted(modelos_disponibles, key=lambda x: 0 if 'flash' in x.lower() else 1)
+
     prompt = f"""
     Eres el motor contable de una app financiera. Analiza el siguiente mensaje y devuelve ÚNICAMENTE un JSON válido.
 
@@ -67,20 +66,30 @@ def procesar_mensaje_ia(mensaje_usuario):
         "descripcion": "Breve detalle"
     }}
     """
-    
-    response = model.generate_content(prompt)
-    
-    # 3. Limpiar etiquetas markdown de la respuesta
-    raw_text = response.text.strip()
-    if raw_text.startswith("```"):
-        lines = raw_text.splitlines()
-        if lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].startswith("```"):
-            lines = lines[:-1]
-        raw_text = "\n".join(lines).strip()
 
-    return json.loads(raw_text)
+    # 3. Probar cada modelo disponible hasta que uno genere la respuesta con éxito
+    ultimo_error = None
+    for nombre_modelo in modelos_ordenados:
+        try:
+            model = genai.GenerativeModel(nombre_modelo)
+            response = model.generate_content(prompt)
+            
+            # Limpiar etiquetas markdown de la respuesta
+            raw_text = response.text.strip()
+            if raw_text.startswith("```"):
+                lines = raw_text.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                raw_text = "\n".join(lines).strip()
+
+            return json.loads(raw_text)
+        except Exception as err:
+            ultimo_error = err
+            continue
+
+    raise RuntimeError(f"Ningún modelo de tu cuenta pudo procesar la solicitud. Detalle: {ultimo_error}")
 
 # -----------------------------------------------------------------------------
 # INTERFAZ DE USUARIO
