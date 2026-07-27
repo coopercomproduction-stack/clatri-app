@@ -4,7 +4,7 @@ import google.generativeai as genai
 import json
 
 # -----------------------------------------------------------------------------
-# CREDENCIALES
+# CREDENCIALES Y CONFIGURACIÓN
 # -----------------------------------------------------------------------------
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -36,9 +36,11 @@ def obtener_logo(nombre_entidad):
     return f"https://logo.clearbit.com/{nombre_lower.replace(' ', '')}.com"
 
 def procesar_mensaje_ia(mensaje_usuario):
-    model = genai.GenerativeModel("models/gemini-1.5-flash")
+    # Lista de modelos compatibles ordenados por prioridad
+    modelos_a_probar = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+    
     prompt = f"""
-    Eres el motor contable de una app financiera. Analiza el siguiente mensaje y devuelve ÚNICAMENTE un JSON válido sin Markdown adicional.
+    Eres el motor contable de una app financiera. Analiza el siguiente mensaje y devuelve ÚNICAMENTE un JSON válido.
 
     Mensaje: "{mensaje_usuario}"
 
@@ -52,9 +54,29 @@ def procesar_mensaje_ia(mensaje_usuario):
         "descripcion": "Breve detalle"
     }}
     """
-    response = model.generate_content(prompt)
-    texto_limpio = response.text.replace("```json", "").replace("```", "").strip()
-    return json.loads(texto_limpio)
+    
+    # Intentar con los modelos disponibles hasta que uno responda con éxito
+    ultimo_error = None
+    for nombre_modelo in modelos_a_probar:
+        try:
+            model = genai.GenerativeModel(
+                nombre_modelo,
+                generation_config={"response_mime_type": "application/json"}
+            )
+            response = model.generate_content(prompt)
+            return json.loads(response.text)
+        except Exception as e:
+            try:
+                # Intento alternativo sin respuesta json estructurada si la versión es antigua
+                model = genai.GenerativeModel(nombre_modelo)
+                response = model.generate_content(prompt)
+                texto_limpio = response.text.replace("```json", "").replace("```", "").strip()
+                return json.loads(texto_limpio)
+            except Exception as err:
+                ultimo_error = err
+                continue
+
+    raise RuntimeError(f"No se pudo conectar con los modelos de Gemini. Detalle: {ultimo_error}")
 
 # -----------------------------------------------------------------------------
 # INTERFAZ DE USUARIO
@@ -86,7 +108,7 @@ for t in res_trans.data:
         with col_img:
             st.image(t.get("logo_comercio") or "https://via.placeholder.com/40", width=40)
         with col_det:
-            st.bold(t['comercio'])
+            st.markdown(f"**{t['comercio']}**")
             st.caption(f"{t['descripcion']} • {t['categoria']}")
         with col_monto:
             color = "green" if t['tipo'] == 'ingreso' else "red"
